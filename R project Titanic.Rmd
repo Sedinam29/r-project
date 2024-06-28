@@ -1,0 +1,239 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+ANALYSING THE TITANIC DATASET
+I will be using the titanic_train_dataset
+
+```{r}
+library(readr)
+library(dplyr)
+library(ggplot2)
+#library(tidyverse)
+#library(tidyr)
+
+```
+
+
+```{r}
+file_path <- "titanic train dataset.csv"
+titanic_df <- read_csv(file_path)
+View(titanic_df)
+```
+I see that my data is mising a lot of values
+
+```{r}
+titanic_df_fill <- titanic_df[complete.cases(titanic_df), ]
+
+print(titanic_df_fill)
+
+cols <-  setdiff(names(titanic_df), "Age")
+titanic_df[cols] <- lapply(titanic_df[cols], function(x) ifelse(is.na(x), 'N/A', x))
+
+titanic_df$Age[is.na(titanic_df$Age)] <- 0
+
+View(titanic_df)
+```
+Brief description of data
+```{r}
+print("Summary of titanic_df:")
+summary(titanic_df)
+
+```
+What is the age distribution in this data?
+```{r}
+age_distro <- ggplot(titanic_df, aes(x = Age)) +
+  geom_histogram(binwidth = 5, fill = "blue", color = "black") +
+  labs(title = "Age Distribution of Passengers", x = "Age", y = "Frequency")
+
+age_distro
+
+ggsave("age_distro.png", plot = age_distro, width = 6, height = 4 )
+
+```
+mean age 
+
+```{r}
+mean_age <- mean(titanic_df$Age[titanic_df$Age > 0])
+
+print(paste("Mean Age (excluding Zeros): ", mean_age))
+```
+
+ANALYSIS:
+There were a lot more people who did not have their ages represented in the file.This is represented by the tallest bar in the graph.
+The ages range from 5 to 80 years. There were more people between the ages of 20 and 40.The average age is 29.7.  We can also see that as the age increases, the frequency decreases, indicating fewer older passengers on board.
+
+
+What is the correlation between age and survival:
+Using the stored func correlation tests, we will be able to see whether age influenced survival.
+
+```{r}
+age_and_survival <- cor.test(titanic_df$Age, titanic_df$Survived, use = "complete.obs")
+
+age_and_survival
+```
+ANALYSIS
+Here we find that the correlation co-efficient is 0.01053922, which is very close to 0. This indicates a very weak linear relationship between age and survival.
+
+Secondly, we also find that the p-value is 0.7534, which is greater than the typical significance level of 0.05. This will mean that we fail to reject the null hypothesis that the true correlation is equal to 0. In other words, the results do not provide strong evidence of a significant correlation between age and survival. 
+
+Hence, with the 95 percent confidence interval ranges from -0.05517638 to 0.07616390, we can say that there is no significant relationship between age and survival. People who survived could have been very young, or old.
+
+
+With that, was there a relation between the passenger's age and passenger class?
+My guess is that older passengers were more likely to travel 1st class as compared to younger ones.
+
+```{r}
+relation_passenger_v_class <- cor.test(titanic_df$Age, titanic_df$Pclass, use = "complete.obs")
+
+relation_passenger_v_class
+
+```
+ANALYSIS:
+First, the correlation co-efficient is -0.3613532. This means that there is a slight negative correlation between passenger's age and passenger class. This then suggests that as the passenger's age increases, the passenger class decreases. Thus, older people went for 1st class or even 2nd class..
+
+Secondly, The p-value is less than 2.2e-16, which is much smaller than the typical significance level of 0.05. In other words, the results provide strong evidence of a significant correlation between age and passnger class.
+
+The 95 percent confidence interval ranges from -0.4171310 to -0.3028636. Since this interval does not include 0, it supports the finding that there is a significant correlation between age and passenger class.
+
+Hence, we can say that there is a significant negative correlation between the passenger’s age and passenger class in the Titanic dataset. This suggests that older passengers were more likely to travel in higher classes (1st class) compared to younger passengers. However, can we say that people who flew first class had higher chance of survival?
+
+
+Knowing that correlation is not causation, I will explore further.
+
+
+what was the distribution of survival by age?
+
+```{r}
+titanic_df <- titanic_df[titanic_df$Age != "N/A" & titanic_df$Age > 0, ]
+
+# Convert Age column to numeric
+titanic_df$Age <- as.numeric(titanic_df$Age)
+
+# Create a histogram of Age, colored by Survived
+survival_v_age_distro <- ggplot(titanic_df, aes(x = Age, fill = factor(Survived))) +
+  geom_histogram(binwidth = 5, alpha = 0.5, position = 'identity') +
+  scale_fill_discrete(name = "Survived", labels = c("No", "Yes")) +
+  labs(title = "Distribution of Survival by Age", x = "Age", y = "Count")
+
+survival_v_age_distro
+
+ggsave("survival_v_age_distro.png", plot = survival_v_age_distro, width = 6, height = 4)
+```
+ANALYSIS: Here we find that, there was higher survival rates among younger passengers, particularly in their late 20s to early 30s.
+
+Secondly, It looks like age is a factor for survival here, as younger people had better survival rates.
+
+There were fewer survivors above age 40. This suggests a lower survival rates for older passengers.
+
+
+
+Was there a higher survival rate among passengers in the upper classes?
+```{r}
+ #omit the null values
+titanic_df[titanic_df == "N/A"] <- NA
+
+# Calculate survival rate by passenger class
+survival_rate_by_class <- titanic_df %>%
+  group_by(Pclass) %>%
+  summarise(Survival_rate = mean(Survived, na.rm = TRUE))
+
+# Print the survival rate by passenger class
+print(Survival_rate_by_class)
+
+```
+
+```{r}
+# Create a bar plot of Survival Rate by Passenger Class
+survival_rate <- ggplot(survival_rate_by_class, aes(x = factor(Pclass), y = Survival_rate, fill = factor(Pclass))) +
+  geom_bar(stat = "identity", color = "black") +
+  scale_fill_discrete(name = "Passenger Class", labels = c("1st Class", "2nd Class", "3rd Class")) +
+  labs(title = "Survival Rate by Passenger Class", x = "Passenger Class", y = "Survival Rate")
+
+survival_rate
+
+ggsave("survival_rate_pclass_distro.png", plot = survival_rate, width = 6, height = 4)
+```
+ANALYSIS:
+
+The rate of survival were 06, 0.5, 0.25 for 1st , 2nd, and 3rd class respectively. This indicates that passengers in higher classes had a better chance of survival, especially at 1st class.
+
+
+What was the age distribution within each passenger class?
+```{r}
+
+# omit 0 ages
+titanic_df <- titanic_df[titanic_df$Age != "N/A" & titanic_df$Age > 0, ]
+
+
+titanic_df$Age <- as.numeric(titanic_df$Age) # Convert Age column to numeric
+
+# Create a boxplot of Age by Passenger Class
+age_v_pclass <- ggplot(titanic_df, aes(x = factor(Pclass), y = Age, fill = factor(Pclass))) +
+  geom_boxplot() +
+  scale_fill_discrete(name = "Passenger Class", labels = c("1st Class", "2nd Class", "3rd Class")) +
+  labs(title = "Age Distribution by Passenger Class", x = "Passenger Class", y = "Age")
+
+age_v_pclass
+
+ggsave("age_v_pclass.png", plot = age_v_pclass, width = 6, height = 4)
+```
+Here we can see that the red box, representing the age range for 1st class has a higher median range and a wider age range. Secondly, the green box, has a slightly lower median age than 1st class and a narrower age range. then, the blue box shows the lowest median age and a similar age range to 2nd class. with this it seems that 1st class passengers were generally older than those in the 2nd and 3rd. 
+
+
+what was the average age of male and female passengers?
+
+```{r}
+# Filter out "N/A" values
+# then Convert Age column to numeric
+#calc the mean age
+
+titanic_df_male <- titanic_df[titanic_df$Sex == "male" & titanic_df$Age != "N/A", ]
+titanic_df_female <- titanic_df[titanic_df$Sex == "female" & titanic_df$Age != "N/A", ]
+
+#to num
+titanic_df_male$Age <- as.numeric(titanic_df_male$Age)
+titanic_df_female$Age <- as.numeric(titanic_df_female$Age)
+
+# Calculate the mean age
+average_age_male <- mean(titanic_df_male$Age)
+average_age_female <- mean(titanic_df_female$Age)
+
+# Print the mean age
+print(paste("Average Age of Male Passengers: ", average_age_male))
+print(paste("Average Age of Female Passengers: ", average_age_female))
+
+
+```
+Did family size influence survival?
+
+Let's test some hypothesis
+
+Calculate the number of passengers traveling alone versus with family
+
+```{r}
+# Create a new column 'Family_size'
+#then 
+
+titanic_df$Family_size <- titanic_df$SibSp + titanic_df$Parch
+
+# Calculate the number of passengers traveling alone and with family
+num_alone <- sum(titanic_df$Family_size == 0)
+num_with_family <- sum(titanic_df$Family_size > 0)
+
+print(paste("Number of Passengers Traveling Alone: ", num_alone))
+print(paste("Number of Passengers Traveling with Family: ", num_with_family))
+```
+Analysis: Here we find that there were 183 more passengers travelling alone than with family.
+
+CONCLUSION:
+
+There was a weak correlation between age and survival, suggesting that age was not a strong predictor of survival on its own. However, younger passengers had a slightly higher survival rate.
+Also, we found that there was a significant negative correlation between passenger class and survival, indicating that passengers in higher classes (1st and 2nd) had a higher survival rate compared to those in lower class (3rd).
+
+There was however a moderate negative correlation between age and passenger class, suggesting that older passengers were more likely to be in higher classes.
+
+Then the age distribution varied across passenger classes, with older passengers more likely to be in higher classes.
+
+To conclude, both passenger class and age played roles in survival rates on the Titanic, with higher-class and younger passengers more likely to survive. However, these factors are interrelated and should not be considered in isolation.
+
